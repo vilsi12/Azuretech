@@ -1,0 +1,1553 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Azure Machine Learning Series Notebook\n",
+    "- Prepared by Vivek Raja P S\n",
+    "- In this notebook, we will learn how to use Azure Machine Learning Python SDK to perform Machine Learning Tasks\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## About the Author\n",
+    "\n",
+    "Vivek Raja P S is working as Data Scientist at NexStem and Organiser at Azure Developer Community Groups in Tamil Nadu. He is also an AWS Community Builder for Machine Learning. He is Microsoft Certified Azure Data Scientist, AI Engineer and Data Engineer. Besides, he loves to mentor hackathon teams, blogging and speaking at various developer groups in the field of AI & Cloud. He is also an active speaker, blogger in various Developer Communities such as at AWS User Group India, TensorFlow User Group, Google Developer Group, Tamil FOSS Community.\n",
+    "\n",
+    "### Social Handles:\n",
+    "- Email: vivekraja98@gmail.com\n",
+    "- Linkedin: https://linkedin.com/in/Vivek0712\n",
+    "- Twitter: https://twitter.com/VivekRaja007\n",
+    "\n",
+    "### Repos:\n",
+    "GitHub: https://github.com/Vivek0712\n",
+    "\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Before we get started...\n",
+    "\n",
+    "\n",
+    "## Pre-requisites\n",
+    " - Basic Python programming Language\n",
+    " - Understanding of Machine Learning Workflows\n",
+    " \n",
+    "## Setup\n",
+    "\n",
+    " - Azure Account with Subscription\n",
+    " - Create a Machine Learning Resource.\n",
+    " - Provide a name for the workspace, Container Register\n",
+    " - Launch the Machine Learning Studio\n",
+    " - Create Dataset\n",
+    " - Create Compute Resource\n",
+    " - Launch a Notebook instance"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Preparing the Environment\n",
+    "\n",
+    " - Retreive all the necessary info \n",
+    " - Make sure all imports are done\n",
+    " - Create Workspace (using SDK or Portal)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    " from azureml.core import Workspace\n",
+    "\n",
+    "# ws = Workspace.create(name='myworkspace',\n",
+    "#                subscription_id='<azure-subscription-id>',\n",
+    "#                resource_group='myresourcegroup',\n",
+    "#                create_resource_group=True,\n",
+    "#                location='eastus2'\n",
+    "#                )"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import json\n",
+    "\n",
+    "with open('keys.txt') as f:\n",
+    "        keys = json.load(f)\n",
+    "subscription_id = keys[\"SUBSCRIPTION_ID\"]\n",
+    "resource_group = keys[\"RESOURCE_GROUP\"]\n",
+    "workspace_name = keys[\"WORKSPACE_NAME\"]\n",
+    "workspace_region = keys[\"WORKSPACE_REGION\"]\n",
+    "\n",
+    "## check if imports are done\n",
+    "import azureml.core\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Workspace\n",
+    "\n",
+    "- An Azure ML Workspace is an Azure resource that organizes and coordinates the actions of many other Azure resources to assist in executing and sharing machine learning workflows. In particular, an Azure ML Workspace coordinates storage, databases, and compute resources providing added functionality for machine learning experimentation, deployment, inference, and the monitoring of deployed models.\n",
+    "\n",
+    "## Create / Access the Workspace\n",
+    "\n",
+    "- Using Constructor\n",
+    "- Using config.json file"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Workspace configuration succeeded. Skip the workspace creation steps below\n"
+     ]
+    }
+   ],
+   "source": [
+    "from azureml.core import Workspace\n",
+    "\n",
+    "try:\n",
+    "    ws = Workspace(subscription_id = subscription_id, resource_group = resource_group, workspace_name = workspace_name)\n",
+    "\n",
+    "    ws.write_config()\n",
+    "    \n",
+    "    ws = Workspace.from_config()\n",
+    "    \n",
+    "    print(\"Workspace configuration succeeded. Skip the workspace creation steps below\")\n",
+    "except:\n",
+    "    print(\"Workspace not accessible. Create the workspace\")\n",
+    "    ws = Workspace.create(name= workspace_name,\n",
+    "               subscription_id= subscription_id,\n",
+    "               resource_group= resource_group,\n",
+    "               create_resource_group=True,\n",
+    "               location= workspace_region\n",
+    "               )\n",
+    "    \n",
+    "# Fetch and Display the workspace\n",
+    "ws = Workspace.from_config()\n",
+    "\n",
+    "#Display the details\n",
+    "#ws.get_details()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Compute \n",
+    "\n",
+    "- All ML Experiments requires Compute to execute. \n",
+    "\n",
+    "## Create / Access the Compute Resource\n",
+    "\n",
+    "- Using ComputeTarget Class"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Creating new cpu-cluster\n",
+      "Creating......\n",
+      "SucceededProvisioning operation finished, operation \"Succeeded\"\n",
+      "Succeeded\n",
+      "AmlCompute wait for completion finished\n",
+      "\n",
+      "Minimum number of nodes requested have been provisioned\n"
+     ]
+    }
+   ],
+   "source": [
+    "from azureml.core.compute import ComputeTarget, AmlCompute\n",
+    "from azureml.core.compute_target import ComputeTargetException\n",
+    "\n",
+    "# Choose a name for your CPU cluster\n",
+    "cpu_cluster_name = \"cpu-cluster\"\n",
+    "\n",
+    "# Verify that cluster does not exist already\n",
+    "try:\n",
+    "    cpu_cluster = ComputeTarget(workspace=ws, name=cpu_cluster_name)\n",
+    "    print(\"Found existing cpu-cluster\")\n",
+    "except ComputeTargetException:\n",
+    "    print(\"Creating new cpu-cluster\")\n",
+    "    \n",
+    "    # Specify the configuration for the new cluster\n",
+    "    compute_config = AmlCompute.provisioning_configuration(vm_size=\"STANDARD_D2_V2\",\n",
+    "                                                           min_nodes=0,\n",
+    "                                                           max_nodes=4)\n",
+    "\n",
+    "    # Create the cluster with the specified name and configuration\n",
+    "    cpu_cluster = ComputeTarget.create(ws, cpu_cluster_name, compute_config)\n",
+    "    \n",
+    "    # Wait for the cluster to complete, show the output log\n",
+    "    cpu_cluster.wait_for_completion(show_output=True)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Experiment\n",
+    "\n",
+    "- In Azure Machine Learning, an experiment is a named process, usually the running of a script or a pipeline, that can generate metrics and outputs and be tracked in the Azure Machine Learning workspace.\n",
+    "\n",
+    "## Create Experiment\n",
+    "\n",
+    "- An experiment can be run multiple times, with different data, code, or settings; and Azure Machine Learning tracks each run, enabling you to view run history and compare results for each run.\n",
+    "\n",
+    "## The Experiment Run Context\n",
+    "\n",
+    "- When you submit an experiment, you use its run context to initialize and end the experiment run that is tracked in Azure Machine Learning\n",
+    "\n",
+    "- You can log, monitor every run in the experiment\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Hello ML World!!\n"
+     ]
+    }
+   ],
+   "source": [
+    "from azureml.core import Experiment\n",
+    "import pandas as pd\n",
+    "\n",
+    "# Create an Azure ML experiment in your workspace\n",
+    "experiment = Experiment(workspace = ws, name = 'my-experiment')\n",
+    "\n",
+    "# Start logging data from the experiment\n",
+    "run = experiment.start_logging()\n",
+    "\n",
+    "# All your experiment code goes here!!!\n",
+    "\n",
+    "\n",
+    "### BLAH! BLAH! BLAH! ML STUFFF\n",
+    "\n",
+    "print(\"Hello ML World!!\")\n",
+    "\n",
+    "\n",
+    "# Complete the experiment\n",
+    "run.complete()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Data\n",
+    "\n",
+    "- Any Machine Learning problems involves working with Data.\n",
+    "- It involves importing the data from the data source\n",
+    "- Registering, Maintaining the dataset in Data Store\n",
+    "- Versioning the dataset\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "Data Stores:\n",
+      "azureml_globaldatasets - Default = False\n",
+      "workspacefilestore - Default = False\n",
+      "workspaceblobstore - Default = True\n",
+      "\n",
+      "Datasets:\n",
+      "\t Sample: Diabetes version 1\n"
+     ]
+    }
+   ],
+   "source": [
+    "#Check and List the datasets attached to our Workspace\n",
+    "from azureml.core import Dataset\n",
+    "\n",
+    "print(\"\\nData Stores:\")\n",
+    "# Get the default datastore\n",
+    "default_ds = ws.get_default_datastore()\n",
+    "\n",
+    "# Enumerate all datastores, indicating which is the default\n",
+    "for ds_name in ws.datastores:\n",
+    "    print(ds_name, \"- Default =\", ds_name == default_ds.name)\n",
+    "    \n",
+    "    \n",
+    "print(\"\\nDatasets:\")\n",
+    "for dataset_name in list(ws.datasets.keys()):\n",
+    "    dataset = Dataset.get_by_name(ws, dataset_name)\n",
+    "    print(\"\\t\", dataset.name, 'version', dataset.version)\n",
+    "    "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>AGE</th>\n",
+       "      <th>SEX</th>\n",
+       "      <th>BMI</th>\n",
+       "      <th>BP</th>\n",
+       "      <th>S1</th>\n",
+       "      <th>S2</th>\n",
+       "      <th>S3</th>\n",
+       "      <th>S4</th>\n",
+       "      <th>S5</th>\n",
+       "      <th>S6</th>\n",
+       "      <th>Y</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>59</td>\n",
+       "      <td>2</td>\n",
+       "      <td>32.1</td>\n",
+       "      <td>101.0</td>\n",
+       "      <td>157</td>\n",
+       "      <td>93.2</td>\n",
+       "      <td>38.0</td>\n",
+       "      <td>4.00</td>\n",
+       "      <td>4.8598</td>\n",
+       "      <td>87</td>\n",
+       "      <td>151</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>48</td>\n",
+       "      <td>1</td>\n",
+       "      <td>21.6</td>\n",
+       "      <td>87.0</td>\n",
+       "      <td>183</td>\n",
+       "      <td>103.2</td>\n",
+       "      <td>70.0</td>\n",
+       "      <td>3.00</td>\n",
+       "      <td>3.8918</td>\n",
+       "      <td>69</td>\n",
+       "      <td>75</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>72</td>\n",
+       "      <td>2</td>\n",
+       "      <td>30.5</td>\n",
+       "      <td>93.0</td>\n",
+       "      <td>156</td>\n",
+       "      <td>93.6</td>\n",
+       "      <td>41.0</td>\n",
+       "      <td>4.00</td>\n",
+       "      <td>4.6728</td>\n",
+       "      <td>85</td>\n",
+       "      <td>141</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>24</td>\n",
+       "      <td>1</td>\n",
+       "      <td>25.3</td>\n",
+       "      <td>84.0</td>\n",
+       "      <td>198</td>\n",
+       "      <td>131.4</td>\n",
+       "      <td>40.0</td>\n",
+       "      <td>5.00</td>\n",
+       "      <td>4.8903</td>\n",
+       "      <td>89</td>\n",
+       "      <td>206</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>50</td>\n",
+       "      <td>1</td>\n",
+       "      <td>23.0</td>\n",
+       "      <td>101.0</td>\n",
+       "      <td>192</td>\n",
+       "      <td>125.4</td>\n",
+       "      <td>52.0</td>\n",
+       "      <td>4.00</td>\n",
+       "      <td>4.2905</td>\n",
+       "      <td>80</td>\n",
+       "      <td>135</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>5</th>\n",
+       "      <td>23</td>\n",
+       "      <td>1</td>\n",
+       "      <td>22.6</td>\n",
+       "      <td>89.0</td>\n",
+       "      <td>139</td>\n",
+       "      <td>64.8</td>\n",
+       "      <td>61.0</td>\n",
+       "      <td>2.00</td>\n",
+       "      <td>4.1897</td>\n",
+       "      <td>68</td>\n",
+       "      <td>97</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>6</th>\n",
+       "      <td>36</td>\n",
+       "      <td>2</td>\n",
+       "      <td>22.0</td>\n",
+       "      <td>90.0</td>\n",
+       "      <td>160</td>\n",
+       "      <td>99.6</td>\n",
+       "      <td>50.0</td>\n",
+       "      <td>3.00</td>\n",
+       "      <td>3.9512</td>\n",
+       "      <td>82</td>\n",
+       "      <td>138</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>7</th>\n",
+       "      <td>66</td>\n",
+       "      <td>2</td>\n",
+       "      <td>26.2</td>\n",
+       "      <td>114.0</td>\n",
+       "      <td>255</td>\n",
+       "      <td>185.0</td>\n",
+       "      <td>56.0</td>\n",
+       "      <td>4.55</td>\n",
+       "      <td>4.2485</td>\n",
+       "      <td>92</td>\n",
+       "      <td>63</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>8</th>\n",
+       "      <td>60</td>\n",
+       "      <td>2</td>\n",
+       "      <td>32.1</td>\n",
+       "      <td>83.0</td>\n",
+       "      <td>179</td>\n",
+       "      <td>119.4</td>\n",
+       "      <td>42.0</td>\n",
+       "      <td>4.00</td>\n",
+       "      <td>4.4773</td>\n",
+       "      <td>94</td>\n",
+       "      <td>110</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>9</th>\n",
+       "      <td>29</td>\n",
+       "      <td>1</td>\n",
+       "      <td>30.0</td>\n",
+       "      <td>85.0</td>\n",
+       "      <td>180</td>\n",
+       "      <td>93.4</td>\n",
+       "      <td>43.0</td>\n",
+       "      <td>4.00</td>\n",
+       "      <td>5.3845</td>\n",
+       "      <td>88</td>\n",
+       "      <td>310</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>10</th>\n",
+       "      <td>22</td>\n",
+       "      <td>1</td>\n",
+       "      <td>18.6</td>\n",
+       "      <td>97.0</td>\n",
+       "      <td>114</td>\n",
+       "      <td>57.6</td>\n",
+       "      <td>46.0</td>\n",
+       "      <td>2.00</td>\n",
+       "      <td>3.9512</td>\n",
+       "      <td>83</td>\n",
+       "      <td>101</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>11</th>\n",
+       "      <td>56</td>\n",
+       "      <td>2</td>\n",
+       "      <td>28.0</td>\n",
+       "      <td>85.0</td>\n",
+       "      <td>184</td>\n",
+       "      <td>144.8</td>\n",
+       "      <td>32.0</td>\n",
+       "      <td>6.00</td>\n",
+       "      <td>3.5835</td>\n",
+       "      <td>77</td>\n",
+       "      <td>69</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>12</th>\n",
+       "      <td>53</td>\n",
+       "      <td>1</td>\n",
+       "      <td>23.7</td>\n",
+       "      <td>92.0</td>\n",
+       "      <td>186</td>\n",
+       "      <td>109.2</td>\n",
+       "      <td>62.0</td>\n",
+       "      <td>3.00</td>\n",
+       "      <td>4.3041</td>\n",
+       "      <td>81</td>\n",
+       "      <td>179</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>13</th>\n",
+       "      <td>50</td>\n",
+       "      <td>2</td>\n",
+       "      <td>26.2</td>\n",
+       "      <td>97.0</td>\n",
+       "      <td>186</td>\n",
+       "      <td>105.4</td>\n",
+       "      <td>49.0</td>\n",
+       "      <td>4.00</td>\n",
+       "      <td>5.0626</td>\n",
+       "      <td>88</td>\n",
+       "      <td>185</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>14</th>\n",
+       "      <td>61</td>\n",
+       "      <td>1</td>\n",
+       "      <td>24.0</td>\n",
+       "      <td>91.0</td>\n",
+       "      <td>202</td>\n",
+       "      <td>115.4</td>\n",
+       "      <td>72.0</td>\n",
+       "      <td>3.00</td>\n",
+       "      <td>4.2905</td>\n",
+       "      <td>73</td>\n",
+       "      <td>118</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>15</th>\n",
+       "      <td>34</td>\n",
+       "      <td>2</td>\n",
+       "      <td>24.7</td>\n",
+       "      <td>118.0</td>\n",
+       "      <td>254</td>\n",
+       "      <td>184.2</td>\n",
+       "      <td>39.0</td>\n",
+       "      <td>7.00</td>\n",
+       "      <td>5.0370</td>\n",
+       "      <td>81</td>\n",
+       "      <td>171</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>16</th>\n",
+       "      <td>47</td>\n",
+       "      <td>1</td>\n",
+       "      <td>30.3</td>\n",
+       "      <td>109.0</td>\n",
+       "      <td>207</td>\n",
+       "      <td>100.2</td>\n",
+       "      <td>70.0</td>\n",
+       "      <td>3.00</td>\n",
+       "      <td>5.2149</td>\n",
+       "      <td>98</td>\n",
+       "      <td>166</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>17</th>\n",
+       "      <td>68</td>\n",
+       "      <td>2</td>\n",
+       "      <td>27.5</td>\n",
+       "      <td>111.0</td>\n",
+       "      <td>214</td>\n",
+       "      <td>147.0</td>\n",
+       "      <td>39.0</td>\n",
+       "      <td>5.00</td>\n",
+       "      <td>4.9416</td>\n",
+       "      <td>91</td>\n",
+       "      <td>144</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>18</th>\n",
+       "      <td>38</td>\n",
+       "      <td>1</td>\n",
+       "      <td>25.4</td>\n",
+       "      <td>84.0</td>\n",
+       "      <td>162</td>\n",
+       "      <td>103.0</td>\n",
+       "      <td>42.0</td>\n",
+       "      <td>4.00</td>\n",
+       "      <td>4.4427</td>\n",
+       "      <td>87</td>\n",
+       "      <td>97</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>19</th>\n",
+       "      <td>41</td>\n",
+       "      <td>1</td>\n",
+       "      <td>24.7</td>\n",
+       "      <td>83.0</td>\n",
+       "      <td>187</td>\n",
+       "      <td>108.2</td>\n",
+       "      <td>60.0</td>\n",
+       "      <td>3.00</td>\n",
+       "      <td>4.5433</td>\n",
+       "      <td>78</td>\n",
+       "      <td>168</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "    AGE  SEX   BMI     BP   S1     S2    S3    S4      S5  S6    Y\n",
+       "0    59    2  32.1  101.0  157   93.2  38.0  4.00  4.8598  87  151\n",
+       "1    48    1  21.6   87.0  183  103.2  70.0  3.00  3.8918  69   75\n",
+       "2    72    2  30.5   93.0  156   93.6  41.0  4.00  4.6728  85  141\n",
+       "3    24    1  25.3   84.0  198  131.4  40.0  5.00  4.8903  89  206\n",
+       "4    50    1  23.0  101.0  192  125.4  52.0  4.00  4.2905  80  135\n",
+       "5    23    1  22.6   89.0  139   64.8  61.0  2.00  4.1897  68   97\n",
+       "6    36    2  22.0   90.0  160   99.6  50.0  3.00  3.9512  82  138\n",
+       "7    66    2  26.2  114.0  255  185.0  56.0  4.55  4.2485  92   63\n",
+       "8    60    2  32.1   83.0  179  119.4  42.0  4.00  4.4773  94  110\n",
+       "9    29    1  30.0   85.0  180   93.4  43.0  4.00  5.3845  88  310\n",
+       "10   22    1  18.6   97.0  114   57.6  46.0  2.00  3.9512  83  101\n",
+       "11   56    2  28.0   85.0  184  144.8  32.0  6.00  3.5835  77   69\n",
+       "12   53    1  23.7   92.0  186  109.2  62.0  3.00  4.3041  81  179\n",
+       "13   50    2  26.2   97.0  186  105.4  49.0  4.00  5.0626  88  185\n",
+       "14   61    1  24.0   91.0  202  115.4  72.0  3.00  4.2905  73  118\n",
+       "15   34    2  24.7  118.0  254  184.2  39.0  7.00  5.0370  81  171\n",
+       "16   47    1  30.3  109.0  207  100.2  70.0  3.00  5.2149  98  166\n",
+       "17   68    2  27.5  111.0  214  147.0  39.0  5.00  4.9416  91  144\n",
+       "18   38    1  25.4   84.0  162  103.0  42.0  4.00  4.4427  87   97\n",
+       "19   41    1  24.7   83.0  187  108.2  60.0  3.00  4.5433  78  168"
+      ]
+     },
+     "execution_count": 25,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Using the data\n",
+    "\n",
+    "tab_data_set = Dataset.get_by_name(ws, dataset_name)\n",
+    "\n",
+    "#Taking first 20 rows and converting it to a Pandas Dataframe\n",
+    "tab_data_set.take(20).to_pandas_dataframe()\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#Upload your own data\n",
+    "\n",
+    "# default_ds.upload_files(files=['./data/diabetes.csv'], # Upload the diabetes csv files in /data\n",
+    "#                        target_path='diabetes-data/', # Put it in a folder path in the datastore\n",
+    "#                        overwrite=True, # Replace existing files of the same name\n",
+    "#                        show_progress=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Datasets registered\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Registering the Dataset with the workspace\n",
+    "\n",
+    "try:\n",
+    "    tab_data_set = tab_data_set.register(workspace=ws, \n",
+    "                                        name='diabetes dataset',\n",
+    "                                        description='diabetes data',\n",
+    "                                        tags = {'format':'CSV'},\n",
+    "                                        create_new_version=True)\n",
+    "except Exception as ex:\n",
+    "    print(ex)\n",
+    "\n",
+    "\n",
+    "print('Datasets registered')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 27,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Datasets:\n",
+      "\t diabetes dataset version 1\n",
+      "\t Sample: Diabetes version 1\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"Datasets:\")\n",
+    "for dataset_name in list(ws.datasets.keys()):\n",
+    "    dataset = Dataset.get_by_name(ws, dataset_name)\n",
+    "    print(\"\\t\", dataset.name, 'version', dataset.version)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Training Your Model"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 1. Create Directories for source files"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "ml-series-diabetes-exp folder created\n"
+     ]
+    }
+   ],
+   "source": [
+    "import os\n",
+    "\n",
+    "# Create a folder for the experiment files\n",
+    "experiment_folder = 'ml-series-diabetes-exp'\n",
+    "os.makedirs(experiment_folder, exist_ok=True)\n",
+    "print(experiment_folder, 'folder created')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 2. Creating your ML Script\n",
+    "\n",
+    "- Parsess the Argument passed to the script\n",
+    "- Starts the run for the experiment\n",
+    "- Does all the ML Training\n",
+    "- Stores the output model"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 90,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Overwriting ml-series-diabetes-exp/diabetes_training.py\n"
+     ]
+    }
+   ],
+   "source": [
+    "%%writefile $experiment_folder/diabetes_training.py\n",
+    "# Import libraries\n",
+    "import os\n",
+    "import argparse\n",
+    "from azureml.core import Run, Dataset\n",
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import joblib\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "from sklearn.linear_model import LogisticRegression, LinearRegression\n",
+    "from sklearn.metrics import roc_auc_score\n",
+    "from sklearn.metrics import roc_curve\n",
+    "from azureml.core import Model\n",
+    "\n",
+    "# Get the script arguments (regularization rate and training dataset ID)\n",
+    "parser = argparse.ArgumentParser()\n",
+    "parser.add_argument('--regularization', type=float, dest='reg_rate', default=0.01, help='regularization rate')\n",
+    "parser.add_argument(\"--input-data\", type=str, dest='training_dataset_id', help='training dataset')\n",
+    "args = parser.parse_args()\n",
+    "\n",
+    "# Set regularization hyperparameter (passed as an argument to the script)\n",
+    "reg = args.reg_rate\n",
+    "inputdata = args.training_dataset_id\n",
+    "\n",
+    "# Get the experiment run context\n",
+    "run = Run.get_context()\n",
+    "\n",
+    "ws = run.experiment.workspace\n",
+    "\n",
+    "# get the input dataset by ID\n",
+    "dataset = Dataset.get_by_id(ws, id=inputdata)\n",
+    "\n",
+    "# Get the training dataset\n",
+    "print(\"Loading Data...\")\n",
+    "diabetes = dataset.to_pandas_dataframe()\n",
+    "\n",
+    "# Separate features and labels\n",
+    "X, y = diabetes[['AGE','SEX','BMI','BP','S1','S2','S3','S4','S5','S6']].values, diabetes['Y'].values\n",
+    "\n",
+    "# Split data into training set and test set\n",
+    "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.30, random_state=0)\n",
+    "\n",
+    "# Train a logistic regression model\n",
+    "print('Training a logistic regression model with regularization rate of', reg)\n",
+    "run.log('Regularization Rate',  np.float(reg))\n",
+    "model = LinearRegression().fit(X_train,y_train)\n",
+    "# model = LogisticRegression(C=1/reg, solver=\"liblinear\").fit(X_train, y_train)\n",
+    "\n",
+    "# calculate accuracy\n",
+    "y_hat = model.predict(X_test)\n",
+    "acc = np.average(y_hat == y_test)\n",
+    "print('Accuracy:', acc)\n",
+    "run.log('Accuracy', np.float(acc))\n",
+    "\n",
+    "\n",
+    "os.makedirs('outputs', exist_ok=True)\n",
+    "# note file saved in the outputs folder is automatically uploaded into experiment record\n",
+    "joblib.dump(value=model, filename='outputs/diabetes_model.pkl')\n",
+    "\n",
+    "\n",
+    "\n",
+    "\n",
+    "run.complete()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 3. Create Environment from Dependencies file (yml)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 54,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Overwriting environment.yml\n"
+     ]
+    }
+   ],
+   "source": [
+    "%%writefile environment.yml\n",
+    "\n",
+    "name: simple_environment\n",
+    "dependencies:\n",
+    "  # The python interpreter version.\n",
+    "  # Currently Azure ML only supports 3.5.2 and later.\n",
+    "- python=3.6.2\n",
+    "- scikit-learn\n",
+    "- pandas\n",
+    "- pip\n",
+    "- pip:\n",
+    "  - azureml-defaults\n",
+    "  - azureml-mlflow"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 4. Training the model\n",
+    "- Create the environment from the dependency file\n",
+    "- Creating Configuration for Python Script\n",
+    "- Submitting the Script to the Experiment"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 91,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "application/vnd.jupyter.widget-view+json": {
+       "model_id": "386fb2ffc8394e3d8b74a667ec7e4c74",
+       "version_major": 2,
+       "version_minor": 0
+      },
+      "text/plain": [
+       "_UserRunWidget(widget_settings={'childWidgetDisplay': 'popup', 'send_telemetry': False, 'log_level': 'INFO', '…"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "application/aml.mini.widget.v1": "{\"status\": \"Completed\", \"workbench_run_details_uri\": \"https://ml.azure.com/runs/mlseries-train-diabetes_1625814351_a2091f7e?wsid=/subscriptions/5b57c18b-0aaf-455e-abb7-4c0474c80bcd/resourcegroups/mlseriesgroup/workspaces/mlseriesws&tid=38c1e200-3655-4ace-9b0a-d8bec27a9f10\", \"run_id\": \"mlseries-train-diabetes_1625814351_a2091f7e\", \"run_properties\": {\"run_id\": \"mlseries-train-diabetes_1625814351_a2091f7e\", \"created_utc\": \"2021-07-09T07:05:53.389564Z\", \"properties\": {\"_azureml.ComputeTargetType\": \"amlcompute\", \"ContentSnapshotId\": \"bbc9b11a-563e-4e07-9c6d-c6f4837a1fac\", \"ProcessInfoFile\": \"azureml-logs/process_info.json\", \"ProcessStatusFile\": \"azureml-logs/process_status.json\", \"azureml.RuntimeType\": \"\"}, \"tags\": {\"_aml_system_ComputeTargetStatus\": \"{\\\"AllocationState\\\":\\\"steady\\\",\\\"PreparingNodeCount\\\":0,\\\"RunningNodeCount\\\":0,\\\"CurrentNodeCount\\\":0}\", \"mlflow.source.type\": \"JOB\", \"mlflow.source.name\": \"diabetes_training.py\"}, \"script_name\": null, \"arguments\": null, \"end_time_utc\": \"2021-07-09T07:11:49.835327Z\", \"status\": \"Completed\", \"log_files\": {\"azureml-logs/55_azureml-execution-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/55_azureml-execution-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt?sv=2019-02-02&sr=b&sig=EQS7mz1Q2b52Yrj%2BmcuNejbvbsZRGoSJl7or8t9f8QI%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\", \"azureml-logs/65_job_prep-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/65_job_prep-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt?sv=2019-02-02&sr=b&sig=AYl8ikuoMxl7HMkSXLgQujF9JyMz%2BmNPvzuPM7%2BdIjg%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\", \"azureml-logs/70_driver_log.txt\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/70_driver_log.txt?sv=2019-02-02&sr=b&sig=fsQj0yvh%2BcHOAF2HQq5Yv4WuC6LkMGIIRX2scpAfOM4%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\", \"azureml-logs/75_job_post-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/75_job_post-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt?sv=2019-02-02&sr=b&sig=yHdEHhg5TcySdNpYK6PIE9p7Srxf%2FJPzqmAd3GSdGVk%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\", \"azureml-logs/process_info.json\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/process_info.json?sv=2019-02-02&sr=b&sig=QpnXdng7niTZ6Ig3vVKl%2F6RB%2Fh5umrIhUom%2F%2FFoPc8U%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\", \"azureml-logs/process_status.json\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/process_status.json?sv=2019-02-02&sr=b&sig=gBOh4PKfU1CD7mfZPh7XHIIDsYYJJesmw8VEcFNKgsE%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\", \"logs/azureml/93_azureml.log\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/logs/azureml/93_azureml.log?sv=2019-02-02&sr=b&sig=N2VKnCu7li1cgMKZVTHIyMf%2Fo%2BXlcf4aLBrUTNWPTY8%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\", \"logs/azureml/dataprep/backgroundProcess.log\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/logs/azureml/dataprep/backgroundProcess.log?sv=2019-02-02&sr=b&sig=8Yon89%2BmAdYpL%2BiqcyNbpkb%2BjsUgRcOsU1jr8MNZoYo%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\", \"logs/azureml/dataprep/backgroundProcess_Telemetry.log\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/logs/azureml/dataprep/backgroundProcess_Telemetry.log?sv=2019-02-02&sr=b&sig=PYu2pjGRcQYzackzKzANEQDtQxho1xoxJjrLzg3r5wI%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\", \"logs/azureml/job_prep_azureml.log\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/logs/azureml/job_prep_azureml.log?sv=2019-02-02&sr=b&sig=Ck4%2FQmPrDZWYwLQrUKVelg4SNFBoAi2Sg9s07I73378%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\", \"logs/azureml/job_release_azureml.log\": \"https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/logs/azureml/job_release_azureml.log?sv=2019-02-02&sr=b&sig=0yaXXgSWt2JucHylDm6HUmk4LSil9M4bN6%2FIS3xaqUQ%3D&st=2021-07-09T10%3A03%3A03Z&se=2021-07-09T18%3A13%3A03Z&sp=r\"}, \"log_groups\": [[\"azureml-logs/process_info.json\", \"azureml-logs/process_status.json\", \"logs/azureml/dataprep/backgroundProcess.log\", \"logs/azureml/dataprep/backgroundProcess_Telemetry.log\", \"logs/azureml/job_prep_azureml.log\", \"logs/azureml/job_release_azureml.log\"], [\"azureml-logs/55_azureml-execution-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt\"], [\"azureml-logs/65_job_prep-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt\"], [\"azureml-logs/70_driver_log.txt\"], [\"azureml-logs/75_job_post-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt\"], [\"logs/azureml/93_azureml.log\"]], \"run_duration\": \"0:05:56\", \"run_number\": \"10\", \"run_queued_details\": {\"status\": \"Completed\", \"details\": null}}, \"child_runs\": [], \"children_metrics\": {}, \"run_metrics\": [{\"name\": \"Regularization Rate\", \"run_id\": \"mlseries-train-diabetes_1625814351_a2091f7e\", \"categories\": [0], \"series\": [{\"data\": [0.01]}]}, {\"name\": \"Accuracy\", \"run_id\": \"mlseries-train-diabetes_1625814351_a2091f7e\", \"categories\": [0], \"series\": [{\"data\": [0.0]}]}], \"run_logs\": \"2021-07-09 07:11:14,263|azureml|DEBUG|Inputs:: kwargs: {'OutputCollection': True, 'EnableMLflowTracking': True, 'snapshotProject': True, 'only_in_process_features': True, 'skip_track_logs_dir': True}, track_folders: None, deny_list: None, directories_to_watch: []\\n2021-07-09 07:11:14,269|azureml.history._tracking.PythonWorkingDirectory|DEBUG|Execution target type: batchai\\n2021-07-09 07:11:14,269|azureml.history._tracking.PythonWorkingDirectory|DEBUG|Failed to import pyspark with error: No module named 'pyspark'\\n2021-07-09 07:11:14,269|azureml.history._tracking.PythonWorkingDirectory.workingdir|DEBUG|Pinning working directory for filesystems: ['pyfs']\\n2021-07-09 07:11:14,730|azureml.core.run|DEBUG|Adding new factory <function ScriptRun._from_run_dto at 0x7fa7d65e1a60> for run source azureml.scriptrun\\n2021-07-09 07:11:14,731|azureml.core.run|DEBUG|Identity in use is not set. Falling back to using AMLToken\\n2021-07-09 07:11:14,731|azureml.core.run|DEBUG|Using AMLToken auth for remote run\\n2021-07-09 07:11:14,732|azureml.core.authentication.TokenRefresherDaemon|DEBUG|Starting daemon and triggering first instance\\n2021-07-09 07:11:14,741|azureml._restclient.clientbase|INFO|Created a worker pool for first use\\n2021-07-09 07:11:14,742|azureml.core.authentication|DEBUG|Time to expire 1814078.258019 seconds\\n2021-07-09 07:11:14,742|azureml._restclient.service_context|DEBUG|Created a static thread pool for ServiceContext class\\n2021-07-09 07:11:14,742|azureml._restclient.clientbase|DEBUG|ClientBase: Calling get with url None\\n2021-07-09 07:11:14,799|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:14,799|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:14,799|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:14,799|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:14,800|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:14,800|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:14,800|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:14,933|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient.get_by_exp_id-async:False|DEBUG|[START]\\n2021-07-09 07:11:14,933|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient|DEBUG|ClientBase: Calling get_by_exp_id with url /history/v1.0/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/{workspaceName}/experimentids/{experimentId}/runs/{runId}\\n2021-07-09 07:11:14,989|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient.get_by_exp_id-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:14,990|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e|DEBUG|Constructing run from dto. type: azureml.scriptrun, source: None, props: {'_azureml.ComputeTargetType': 'amlcompute', 'ContentSnapshotId': 'bbc9b11a-563e-4e07-9c6d-c6f4837a1fac', 'ProcessInfoFile': 'azureml-logs/process_info.json', 'ProcessStatusFile': 'azureml-logs/process_status.json', 'azureml.RuntimeType': ''}\\n2021-07-09 07:11:14,990|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunContextManager|DEBUG|Valid logs dir, setting up content loader\\n2021-07-09 07:11:15,467|azureml|DEBUG|Installed with mlflow version 1.18.0.\\n2021-07-09 07:11:15,468|azureml.mlflow|DEBUG|Setting up a Remote MLflow run\\n2021-07-09 07:11:15,470|azureml.mlflow|DEBUG|Creating a tracking uri in centralus.api.azureml.ms for workspace /subscriptions/5b57c18b-0aaf-455e-abb7-4c0474c80bcd/resourceGroups/mlseriesgroup/providers/Microsoft.MachineLearningServices/workspaces/mlseriesws\\n2021-07-09 07:11:15,470|azureml.mlflow|DEBUG|Setting MLflow tracking uri env var\\n2021-07-09 07:11:15,470|azureml.mlflow|DEBUG|Setting MLflow run id env var with mlseries-train-diabetes_1625814351_a2091f7e\\n2021-07-09 07:11:15,470|azureml.mlflow|DEBUG|Setting Mlflow experiment with mlseries-train-diabetes\\n2021-07-09 07:11:15,471|azureml.mlflow|DEBUG|Setting the mlflow tag mlflow.source.type\\n2021-07-09 07:11:15,471|azureml.mlflow|DEBUG|Setting the mlflow tag mlflow.source.name\\n2021-07-09 07:11:15,471|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient.get_details-async:False|DEBUG|[START]\\n2021-07-09 07:11:15,472|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient|DEBUG|ClientBase: Calling get_details with url /history/v1.0/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/{workspaceName}/experiments/{experimentName}/runs/{runId}/details\\n2021-07-09 07:11:15,567|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient.get_details-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:15,570|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient.patch_by_exp_id-async:False|DEBUG|[START]\\n2021-07-09 07:11:15,570|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient|DEBUG|ClientBase: Calling patch_by_exp_id with url /history/v1.0/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/{workspaceName}/experimentids/{experimentId}/runs/{runId}\\n2021-07-09 07:11:15,683|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient.patch_by_exp_id-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:15,683|azureml.WorkerPool|DEBUG|[START]\\n2021-07-09 07:11:15,683|azureml.SendRunKillSignal|DEBUG|[START]\\n2021-07-09 07:11:15,684|azureml.RunStatusContext|DEBUG|[START]\\n2021-07-09 07:11:15,684|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunContextManager.RunStatusContext|DEBUG|[START]\\n2021-07-09 07:11:15,684|azureml.MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:15,684|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:15,684|azureml.WorkingDirectoryCM|DEBUG|[START]\\n2021-07-09 07:11:15,684|azureml.history._tracking.PythonWorkingDirectory.workingdir|DEBUG|[START]\\n2021-07-09 07:11:15,684|azureml.history._tracking.PythonWorkingDirectory|INFO|Current working dir: /mnt/batch/tasks/shared/LS_root/jobs/mlseriesws/azureml/mlseries-train-diabetes_1625814351_a2091f7e/wd/azureml/mlseries-train-diabetes_1625814351_a2091f7e\\n2021-07-09 07:11:15,684|azureml.history._tracking.PythonWorkingDirectory.workingdir|DEBUG|Calling pyfs\\n2021-07-09 07:11:15,684|azureml.history._tracking.PythonWorkingDirectory.workingdir|DEBUG|Storing working dir for pyfs as /mnt/batch/tasks/shared/LS_root/jobs/mlseriesws/azureml/mlseries-train-diabetes_1625814351_a2091f7e/wd/azureml/mlseries-train-diabetes_1625814351_a2091f7e\\n2021-07-09 07:11:16,088|azureml.core.run|DEBUG|Identity in use is not set. Falling back to using AMLToken\\n2021-07-09 07:11:16,088|azureml.core.run|DEBUG|Using AMLToken auth for remote run\\n2021-07-09 07:11:16,088|azureml._restclient.service_context|DEBUG|Access an existing static threadpool for ServiceContext class\\n2021-07-09 07:11:16,088|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,089|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,089|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,089|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,090|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,090|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,090|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,124|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient.get_by_exp_id-async:False|DEBUG|[START]\\n2021-07-09 07:11:16,124|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient|DEBUG|ClientBase: Calling get_by_exp_id with url /history/v1.0/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/{workspaceName}/experimentids/{experimentId}/runs/{runId}\\n2021-07-09 07:11:16,182|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient.get_by_exp_id-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:16,183|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e|DEBUG|Constructing run from dto. type: azureml.scriptrun, source: None, props: {'_azureml.ComputeTargetType': 'amlcompute', 'ContentSnapshotId': 'bbc9b11a-563e-4e07-9c6d-c6f4837a1fac', 'ProcessInfoFile': 'azureml-logs/process_info.json', 'ProcessStatusFile': 'azureml-logs/process_status.json', 'azureml.RuntimeType': ''}\\n2021-07-09 07:11:16,183|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunContextManager|DEBUG|Valid logs dir, setting up content loader\\n2021-07-09 07:11:16,459|azureml.core.run|DEBUG|Identity in use is not set. Falling back to using AMLToken\\n2021-07-09 07:11:16,459|azureml.core.run|DEBUG|Using AMLToken auth for remote run\\n2021-07-09 07:11:16,459|azureml._restclient.service_context|DEBUG|Access an existing static threadpool for ServiceContext class\\n2021-07-09 07:11:16,459|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,460|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,460|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,460|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,461|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,461|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:16,461|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:18,378|azureml.core.run|DEBUG|Identity in use is not set. Falling back to using AMLToken\\n2021-07-09 07:11:18,379|azureml.core.run|DEBUG|Using AMLToken auth for remote run\\n2021-07-09 07:11:18,379|azureml._restclient.service_context|DEBUG|Access an existing static threadpool for ServiceContext class\\n2021-07-09 07:11:18,379|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:18,380|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:18,380|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:18,380|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:18,380|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:18,380|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:18,380|azureml._base_sdk_common.service_discovery|DEBUG|Found history service url in environment variable AZUREML_SERVICE_ENDPOINT, history service url: https://centralus.api.azureml.ms.\\n2021-07-09 07:11:18,389|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient.patch_by_exp_id-async:False|DEBUG|[START]\\n2021-07-09 07:11:18,390|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient|DEBUG|ClientBase: Calling patch_by_exp_id with url /history/v1.0/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/{workspaceName}/experimentids/{experimentId}/runs/{runId}\\n2021-07-09 07:11:18,501|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.RunClient.patch_by_exp_id-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:22,294|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|Overrides: Max batch size: 50, batch cushion: 5, Interval: 1.\\n2021-07-09 07:11:22,294|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.PostMetricsBatchV2Daemon|DEBUG|Starting daemon and triggering first instance\\n2021-07-09 07:11:22,294|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|Used <class 'azureml._common.async_utils.batch_task_queue.BatchTaskQueue'> for use_batch=True.\\n2021-07-09 07:11:22,301|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e|INFO|complete is not setting status for submitted runs.\\n2021-07-09 07:11:22,301|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.FlushingMetricsClient|DEBUG|[START]\\n2021-07-09 07:11:22,301|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|Overrides: Max batch size: 50, batch cushion: 5, Interval: 1.\\n2021-07-09 07:11:22,301|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.PostMetricsBatchDaemon|DEBUG|Starting daemon and triggering first instance\\n2021-07-09 07:11:22,301|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|Used <class 'azureml._common.async_utils.batch_task_queue.BatchTaskQueue'> for use_batch=True.\\n2021-07-09 07:11:22,302|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:22,302|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|flush timeout 300 is different from task queue timeout 120, using flush timeout\\n2021-07-09 07:11:22,302|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|Waiting 300 seconds on tasks: [].\\n2021-07-09 07:11:22,302|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch|DEBUG|\\n2021-07-09 07:11:22,302|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:22,302|azureml.BatchTaskQueueAdd_1_Batches|DEBUG|[Start]\\n2021-07-09 07:11:22,302|azureml.BatchTaskQueueAdd_1_Batches.WorkerPool|DEBUG|submitting future: _handle_batch\\n2021-07-09 07:11:22,303|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2|DEBUG|Batch size 2.\\n2021-07-09 07:11:22,303|azureml.BatchTaskQueueAdd_1_Batches.0__handle_batch|DEBUG|Using basic handler - no exception handling\\n2021-07-09 07:11:22,303|azureml.BatchTaskQueueAdd_1_Batches|DEBUG|Adding task 0__handle_batch to queue of approximate size: 0\\n2021-07-09 07:11:22,303|azureml.BatchTaskQueueAdd_1_Batches|DEBUG|[Stop] - waiting default timeout\\n2021-07-09 07:11:22,303|azureml.BatchTaskQueueAdd_1_Batches.WaitFlushSource:BatchTaskQueueAdd_1_Batches|DEBUG|[START]\\n2021-07-09 07:11:22,303|azureml.BatchTaskQueueAdd_1_Batches.WaitFlushSource:BatchTaskQueueAdd_1_Batches|DEBUG|Overriding default flush timeout from None to 120\\n2021-07-09 07:11:22,303|azureml.BatchTaskQueueAdd_1_Batches.WaitFlushSource:BatchTaskQueueAdd_1_Batches|DEBUG|Waiting 120 seconds on tasks: [AsyncTask(0__handle_batch)].\\n2021-07-09 07:11:22,303|azureml._restclient.service_context.WorkerPool|DEBUG|submitting future: _log_batch_v2\\n2021-07-09 07:11:22,303|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|Metrics Client: _log_batch_v2 is calling post_run_metrics posting 2 values.\\n2021-07-09 07:11:22,303|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.0__log_batch_v2|DEBUG|Using basic handler - no exception handling\\n2021-07-09 07:11:22,303|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2|DEBUG|Adding task 0__log_batch_v2 to queue of approximate size: 0\\n2021-07-09 07:11:22,304|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient._post_run_metrics_log_failed_validations-async:False|DEBUG|[START]\\n2021-07-09 07:11:22,304|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|ClientBase: Calling _post_run_metrics_log_failed_validations with url None\\n2021-07-09 07:11:22,493|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient._post_run_metrics_log_failed_validations-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:22,553|azureml.BatchTaskQueueAdd_1_Batches.0__handle_batch.WaitingTask|DEBUG|[START]\\n2021-07-09 07:11:22,554|azureml.BatchTaskQueueAdd_1_Batches.0__handle_batch.WaitingTask|DEBUG|Awaiter is BatchTaskQueueAdd_1_Batches\\n2021-07-09 07:11:22,554|azureml.BatchTaskQueueAdd_1_Batches.0__handle_batch.WaitingTask|DEBUG|[STOP]\\n2021-07-09 07:11:22,554|azureml.BatchTaskQueueAdd_1_Batches|DEBUG|Waiting on task: 0__handle_batch.\\n1 tasks left. Current duration of flush 7.82012939453125e-05 seconds.\\n\\n2021-07-09 07:11:22,554|azureml.BatchTaskQueueAdd_1_Batches.WaitFlushSource:BatchTaskQueueAdd_1_Batches|DEBUG|[STOP]\\n2021-07-09 07:11:22,554|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:22,554|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|flush timeout 300 is different from task queue timeout 120, using flush timeout\\n2021-07-09 07:11:22,554|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|Waiting 300 seconds on tasks: [AsyncTask(0__log_batch_v2)].\\n2021-07-09 07:11:22,554|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.0__log_batch_v2.WaitingTask|DEBUG|[START]\\n2021-07-09 07:11:22,554|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.0__log_batch_v2.WaitingTask|DEBUG|Awaiter is PostMetricsBatchV2\\n2021-07-09 07:11:22,554|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.0__log_batch_v2.WaitingTask|DEBUG|[STOP]\\n2021-07-09 07:11:22,554|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2|DEBUG|\\n2021-07-09 07:11:22,554|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:22,554|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.FlushingMetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:22,555|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.wait_on_ingest-async:False|DEBUG|[START]\\n2021-07-09 07:11:22,555|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|ClientBase: Calling wait_on_ingest with url /history/v1.0/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/{workspaceName}/experiments/{experimentName}/runs/{runId}/metricsingest/wait\\n2021-07-09 07:11:22,608|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.wait_on_ingest-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:27,614|azureml._restclient.clientbase|DEBUG|ClientBase: Calling update_status with url None\\n2021-07-09 07:11:27,663|azureml.history._tracking.PythonWorkingDirectory.workingdir|DEBUG|Uploading tracked directories: [], excluding []\\n2021-07-09 07:11:27,663|azureml.history._tracking.PythonWorkingDirectory.workingdir|DEBUG|Calling track for pyfs\\n2021-07-09 07:11:27,673|azureml.history._tracking.PythonWorkingDirectory.workingdir|DEBUG|Calling pyfs\\n2021-07-09 07:11:27,673|azureml.history._tracking.PythonWorkingDirectory|INFO|Current working dir: /mnt/batch/tasks/shared/LS_root/jobs/mlseriesws/azureml/mlseries-train-diabetes_1625814351_a2091f7e/wd/azureml/mlseries-train-diabetes_1625814351_a2091f7e\\n2021-07-09 07:11:27,673|azureml.history._tracking.PythonWorkingDirectory.workingdir|DEBUG|Reverting working dir from /mnt/batch/tasks/shared/LS_root/jobs/mlseriesws/azureml/mlseries-train-diabetes_1625814351_a2091f7e/wd/azureml/mlseries-train-diabetes_1625814351_a2091f7e to /mnt/batch/tasks/shared/LS_root/jobs/mlseriesws/azureml/mlseries-train-diabetes_1625814351_a2091f7e/wd/azureml/mlseries-train-diabetes_1625814351_a2091f7e\\n2021-07-09 07:11:27,673|azureml.history._tracking.PythonWorkingDirectory|INFO|Working dir is already updated /mnt/batch/tasks/shared/LS_root/jobs/mlseriesws/azureml/mlseries-train-diabetes_1625814351_a2091f7e/wd/azureml/mlseries-train-diabetes_1625814351_a2091f7e\\n2021-07-09 07:11:27,673|azureml.history._tracking.PythonWorkingDirectory.workingdir|DEBUG|[STOP]\\n2021-07-09 07:11:27,673|azureml.WorkingDirectoryCM|DEBUG|[STOP]\\n2021-07-09 07:11:27,673|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.FlushingMetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,673|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|Overrides: Max batch size: 50, batch cushion: 5, Interval: 1.\\n2021-07-09 07:11:27,674|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.PostMetricsBatchDaemon|DEBUG|Starting daemon and triggering first instance\\n2021-07-09 07:11:27,674|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|Used <class 'azureml._common.async_utils.batch_task_queue.BatchTaskQueue'> for use_batch=True.\\n2021-07-09 07:11:27,674|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,674|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|flush timeout 120 is different from task queue timeout 120, using flush timeout\\n2021-07-09 07:11:27,674|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|Waiting 120 seconds on tasks: [].\\n2021-07-09 07:11:27,674|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch|DEBUG|\\n2021-07-09 07:11:27,674|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,674|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|Overrides: Max batch size: 50, batch cushion: 5, Interval: 1.\\n2021-07-09 07:11:27,674|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.PostMetricsBatchV2Daemon|DEBUG|Starting daemon and triggering first instance\\n2021-07-09 07:11:27,675|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|Used <class 'azureml._common.async_utils.batch_task_queue.BatchTaskQueue'> for use_batch=True.\\n2021-07-09 07:11:27,675|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,675|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|flush timeout 120 is different from task queue timeout 120, using flush timeout\\n2021-07-09 07:11:27,675|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|Waiting 120 seconds on tasks: [].\\n2021-07-09 07:11:27,675|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2|DEBUG|\\n2021-07-09 07:11:27,675|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,675|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.FlushingMetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,675|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.wait_on_ingest-async:False|DEBUG|[START]\\n2021-07-09 07:11:27,675|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|ClientBase: Calling wait_on_ingest with url /history/v1.0/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/{workspaceName}/experiments/{experimentName}/runs/{runId}/metricsingest/wait\\n2021-07-09 07:11:27,734|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.wait_on_ingest-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:27,734|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,734|azureml.MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.FlushingMetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|flush timeout 300 is different from task queue timeout 120, using flush timeout\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|Waiting 300 seconds on tasks: [].\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch|DEBUG|\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|flush timeout 300 is different from task queue timeout 120, using flush timeout\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|Waiting 300 seconds on tasks: [].\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2|DEBUG|\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.FlushingMetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.wait_on_ingest-async:False|DEBUG|[START]\\n2021-07-09 07:11:27,735|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|ClientBase: Calling wait_on_ingest with url /history/v1.0/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/{workspaceName}/experiments/{experimentName}/runs/{runId}/metricsingest/wait\\n2021-07-09 07:11:27,791|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.wait_on_ingest-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:27,791|azureml.RunStatusContext|DEBUG|[STOP]\\n2021-07-09 07:11:27,791|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.FlushingMetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,791|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|flush timeout 900.0 is different from task queue timeout 120, using flush timeout\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|Waiting 900.0 seconds on tasks: [].\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch|DEBUG|\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|flush timeout 900.0 is different from task queue timeout 120, using flush timeout\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|Waiting 900.0 seconds on tasks: [].\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2|DEBUG|\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.FlushingMetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.wait_on_ingest-async:False|DEBUG|[START]\\n2021-07-09 07:11:27,792|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|ClientBase: Calling wait_on_ingest with url /history/v1.0/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/{workspaceName}/experiments/{experimentName}/runs/{runId}/metricsingest/wait\\n2021-07-09 07:11:27,858|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.wait_on_ingest-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.FlushingMetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|flush timeout 900.0 is different from task queue timeout 120, using flush timeout\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|Waiting 900.0 seconds on tasks: [].\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch|DEBUG|\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatch.WaitFlushSource:MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|[START]\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|flush timeout 900.0 is different from task queue timeout 120, using flush timeout\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|Waiting 900.0 seconds on tasks: [].\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2|DEBUG|\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.PostMetricsBatchV2.WaitFlushSource:MetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,859|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.FlushingMetricsClient|DEBUG|[STOP]\\n2021-07-09 07:11:27,860|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.wait_on_ingest-async:False|DEBUG|[START]\\n2021-07-09 07:11:27,860|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient|DEBUG|ClientBase: Calling wait_on_ingest with url /history/v1.0/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.MachineLearningServices/workspaces/{workspaceName}/experiments/{experimentName}/runs/{runId}/metricsingest/wait\\n2021-07-09 07:11:27,914|azureml._SubmittedRun#mlseries-train-diabetes_1625814351_a2091f7e.RunHistoryFacade.MetricsClient.wait_on_ingest-async:False|DEBUG|[STOP]\\n2021-07-09 07:11:27,914|azureml.SendRunKillSignal|DEBUG|[STOP]\\n2021-07-09 07:11:27,915|azureml.HistoryTrackingWorkerPool.WorkerPoolShutdown|DEBUG|[START]\\n2021-07-09 07:11:27,915|azureml.HistoryTrackingWorkerPool.WorkerPoolShutdown|DEBUG|[STOP]\\n2021-07-09 07:11:27,915|azureml.WorkerPool|DEBUG|[STOP]\\n\\nRun is completed.\", \"graph\": {}, \"widget_settings\": {\"childWidgetDisplay\": \"popup\", \"send_telemetry\": false, \"log_level\": \"INFO\", \"sdk_version\": \"1.31.0\"}, \"loading\": false}"
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    },
+    {
+     "data": {
+      "text/plain": [
+       "{'runId': 'mlseries-train-diabetes_1625814351_a2091f7e',\n",
+       " 'target': 'cpu-cluster',\n",
+       " 'status': 'Completed',\n",
+       " 'startTimeUtc': '2021-07-09T07:09:52.372703Z',\n",
+       " 'endTimeUtc': '2021-07-09T07:11:49.835327Z',\n",
+       " 'properties': {'_azureml.ComputeTargetType': 'amlcompute',\n",
+       "  'ContentSnapshotId': 'bbc9b11a-563e-4e07-9c6d-c6f4837a1fac',\n",
+       "  'ProcessInfoFile': 'azureml-logs/process_info.json',\n",
+       "  'ProcessStatusFile': 'azureml-logs/process_status.json',\n",
+       "  'azureml.RuntimeType': ''},\n",
+       " 'inputDatasets': [{'dataset': {'id': 'ffb088b5-f279-40e2-8290-4b640d2bd094'}, 'consumptionDetails': {'type': 'RunInput', 'inputName': 'diabetes_data', 'mechanism': 'Direct'}}, {'dataset': {'id': 'ffb088b5-f279-40e2-8290-4b640d2bd094'}, 'consumptionDetails': {'type': 'Reference'}}],\n",
+       " 'outputDatasets': [],\n",
+       " 'runDefinition': {'script': 'diabetes_training.py',\n",
+       "  'command': '',\n",
+       "  'useAbsolutePath': False,\n",
+       "  'arguments': ['--input-data', 'DatasetConsumptionConfig:diabetes_data'],\n",
+       "  'sourceDirectoryDataStore': None,\n",
+       "  'framework': 'Python',\n",
+       "  'communicator': 'None',\n",
+       "  'target': 'cpu-cluster',\n",
+       "  'dataReferences': {},\n",
+       "  'data': {'diabetes_data': {'dataLocation': {'dataset': {'id': 'ffb088b5-f279-40e2-8290-4b640d2bd094',\n",
+       "      'name': 'diabetes dataset',\n",
+       "      'version': '1'},\n",
+       "     'dataPath': None,\n",
+       "     'uri': None},\n",
+       "    'mechanism': 'Direct',\n",
+       "    'environmentVariableName': 'diabetes_data',\n",
+       "    'pathOnCompute': None,\n",
+       "    'overwrite': False}},\n",
+       "  'outputData': {},\n",
+       "  'datacaches': [],\n",
+       "  'jobName': None,\n",
+       "  'maxRunDurationSeconds': 2592000,\n",
+       "  'nodeCount': 1,\n",
+       "  'priority': None,\n",
+       "  'credentialPassthrough': False,\n",
+       "  'identity': None,\n",
+       "  'environment': {'name': 'experiment_env',\n",
+       "   'version': 'Autosave_2021-07-08T21:14:35Z_043ef49c',\n",
+       "   'python': {'interpreterPath': 'python',\n",
+       "    'userManagedDependencies': False,\n",
+       "    'condaDependencies': {'dependencies': ['python=3.6.2',\n",
+       "      'scikit-learn',\n",
+       "      'pandas',\n",
+       "      'pip',\n",
+       "      {'pip': ['azureml-defaults', 'azureml-mlflow']}],\n",
+       "     'name': 'azureml_809a074975457de1dd27bdfcf2d79d61'},\n",
+       "    'baseCondaEnvironment': None},\n",
+       "   'environmentVariables': {'EXAMPLE_ENV_VAR': 'EXAMPLE_VALUE'},\n",
+       "   'docker': {'baseImage': 'mcr.microsoft.com/azureml/openmpi3.1.2-ubuntu18.04:20210531.v1',\n",
+       "    'platform': {'os': 'Linux', 'architecture': 'amd64'},\n",
+       "    'baseDockerfile': None,\n",
+       "    'baseImageRegistry': {'address': None, 'username': None, 'password': None},\n",
+       "    'enabled': False,\n",
+       "    'arguments': []},\n",
+       "   'spark': {'repositories': [], 'packages': [], 'precachePackages': True},\n",
+       "   'inferencingStackVersion': None},\n",
+       "  'history': {'outputCollection': True,\n",
+       "   'directoriesToWatch': ['logs'],\n",
+       "   'enableMLflowTracking': True,\n",
+       "   'snapshotProject': True},\n",
+       "  'spark': {'configuration': {'spark.app.name': 'Azure ML Experiment',\n",
+       "    'spark.yarn.maxAppAttempts': '1'}},\n",
+       "  'parallelTask': {'maxRetriesPerWorker': 0,\n",
+       "   'workerCountPerNode': 1,\n",
+       "   'terminalExitCodes': None,\n",
+       "   'configuration': {}},\n",
+       "  'amlCompute': {'name': None,\n",
+       "   'vmSize': None,\n",
+       "   'retainCluster': False,\n",
+       "   'clusterMaxNodeCount': None},\n",
+       "  'aiSuperComputer': {'instanceType': None,\n",
+       "   'imageVersion': None,\n",
+       "   'location': None,\n",
+       "   'aiSuperComputerStorageData': None,\n",
+       "   'interactive': False,\n",
+       "   'scalePolicy': None,\n",
+       "   'virtualClusterArmId': None,\n",
+       "   'tensorboardLogDirectory': None,\n",
+       "   'sshPublicKey': None,\n",
+       "   'enableAzmlInt': True,\n",
+       "   'priority': None,\n",
+       "   'slaTier': None},\n",
+       "  'tensorflow': {'workerCount': 1, 'parameterServerCount': 1},\n",
+       "  'mpi': {'processCountPerNode': 1},\n",
+       "  'pyTorch': {'communicationBackend': 'nccl', 'processCount': None},\n",
+       "  'hdi': {'yarnDeployMode': 'Cluster'},\n",
+       "  'containerInstance': {'region': None, 'cpuCores': 2.0, 'memoryGb': 3.5},\n",
+       "  'exposedPorts': None,\n",
+       "  'docker': {'useDocker': False,\n",
+       "   'sharedVolumes': True,\n",
+       "   'shmSize': '2g',\n",
+       "   'arguments': []},\n",
+       "  'cmk8sCompute': {'configuration': {}},\n",
+       "  'commandReturnCodeConfig': {'returnCode': 'Zero',\n",
+       "   'successfulReturnCodes': []},\n",
+       "  'environmentVariables': {},\n",
+       "  'applicationEndpoints': {},\n",
+       "  'parameters': []},\n",
+       " 'logFiles': {'azureml-logs/55_azureml-execution-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/55_azureml-execution-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt?sv=2019-02-02&sr=b&sig=T658beVyXJt6T1qkHABRxwTN1CWC9snOoYKrRYz490Y%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r',\n",
+       "  'azureml-logs/65_job_prep-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/65_job_prep-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt?sv=2019-02-02&sr=b&sig=hUyfqcJdy%2FYRQSnQLTOVy9phsxAeNfvi4NSeFWVejSo%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r',\n",
+       "  'azureml-logs/70_driver_log.txt': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/70_driver_log.txt?sv=2019-02-02&sr=b&sig=f%2Fhxs61TmYJzey0uPwMfpN%2FfbfFotwpvtBR3RyiUZ7Y%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r',\n",
+       "  'azureml-logs/75_job_post-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/75_job_post-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt?sv=2019-02-02&sr=b&sig=tbTjqmTr4fJ6hccqFxnjXCuD0UdZEWdiwCKCBTB68Yw%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r',\n",
+       "  'azureml-logs/process_info.json': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/process_info.json?sv=2019-02-02&sr=b&sig=%2BAy60BtSvuoTyCwxkROACebAXSawPdWFfLL116rFekY%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r',\n",
+       "  'azureml-logs/process_status.json': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/azureml-logs/process_status.json?sv=2019-02-02&sr=b&sig=SenFRTqv2rs%2F%2BfMV2KwJkC8Nd9Uq0r9Ppfe9JmEsutc%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r',\n",
+       "  'logs/azureml/93_azureml.log': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/logs/azureml/93_azureml.log?sv=2019-02-02&sr=b&sig=6RsfbVaukofuyRtoCx19iQiRSOhAXqg0Qrho8nCHdLc%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r',\n",
+       "  'logs/azureml/dataprep/backgroundProcess.log': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/logs/azureml/dataprep/backgroundProcess.log?sv=2019-02-02&sr=b&sig=q2G%2BGPUPWOS2PrpFVgjXVuo1fk8XAowBQm7PUmvzpPM%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r',\n",
+       "  'logs/azureml/dataprep/backgroundProcess_Telemetry.log': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/logs/azureml/dataprep/backgroundProcess_Telemetry.log?sv=2019-02-02&sr=b&sig=G3IzOGD%2BUTBzysK6nM7sOgXIDMaBnk1kZ%2BRgj66Sh8s%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r',\n",
+       "  'logs/azureml/job_prep_azureml.log': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/logs/azureml/job_prep_azureml.log?sv=2019-02-02&sr=b&sig=252t1MwWKwjKhgAX8ywp9g1ua7eWbKGhatgU9Bz%2FlSs%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r',\n",
+       "  'logs/azureml/job_release_azureml.log': 'https://mlseriesws6723933848.blob.core.windows.net/azureml/ExperimentRun/dcid.mlseries-train-diabetes_1625814351_a2091f7e/logs/azureml/job_release_azureml.log?sv=2019-02-02&sr=b&sig=EvuHc%2BZoBCLmQ3IdYGUtNY0fuMvIC34goK0l4GQgyeg%3D&st=2021-07-09T07%3A01%3A38Z&se=2021-07-09T15%3A11%3A38Z&sp=r'},\n",
+       " 'submittedBy': 'Vivek Raja P S'}"
+      ]
+     },
+     "execution_count": 91,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "from azureml.core import Experiment, ScriptRunConfig, Environment\n",
+    "from azureml.widgets import RunDetails\n",
+    "\n",
+    "# Create a Python environment for the experiment (from a .yml file)\n",
+    "env = Environment.from_conda_specification(\"experiment_env\", \"environment.yml\")\n",
+    "\n",
+    "\n",
+    "# Create a Python environment for the experiment (pip installing requirements.txt)\n",
+    "# env = Environment.from_pip_requirements(\"experiment_env\", \"requirements.txt\", pip_version=None)\n",
+    "\n",
+    "\n",
+    "# Create a script config\n",
+    "script_config = ScriptRunConfig(source_directory=experiment_folder,\n",
+    "                                script='diabetes_training.py',\n",
+    "                                 arguments=['--input-data', tab_data_set.as_named_input('diabetes_data')],\n",
+    "                                  compute_target=cpu_cluster,\n",
+    "                                environment=env) \n",
+    "\n",
+    "# submit the experiment run\n",
+    "experiment_name = 'mlseries-train-diabetes'\n",
+    "experiment = Experiment(workspace=ws, name=experiment_name)\n",
+    "run = experiment.submit(config=script_config)\n",
+    "\n",
+    "# Show the running experiment run in the notebook widget\n",
+    "RunDetails(run).show()\n",
+    "\n",
+    "# Block until the experiment run has completed\n",
+    "run.wait_for_completion()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "### 5. Retrieving metrics &  Models"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 116,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Regularization Rate 0.01\n",
+      "Accuracy 0.0\n",
+      "\n",
+      "\n",
+      "azureml-logs/55_azureml-execution-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt\n",
+      "azureml-logs/65_job_prep-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt\n",
+      "azureml-logs/70_driver_log.txt\n",
+      "azureml-logs/75_job_post-tvmps_c13ee216f5aceb62467033b31dd5a117e6510f3f903a8dd15d777d32cdbefd5f_d.txt\n",
+      "azureml-logs/process_info.json\n",
+      "azureml-logs/process_status.json\n",
+      "logs/azureml/93_azureml.log\n",
+      "logs/azureml/dataprep/backgroundProcess.log\n",
+      "logs/azureml/dataprep/backgroundProcess_Telemetry.log\n",
+      "logs/azureml/job_prep_azureml.log\n",
+      "logs/azureml/job_release_azureml.log\n",
+      "outputs/diabetes_model.pkl\n",
+      "diabetes_model version: 4\n",
+      "\t Training context : Script\n",
+      "\t Accuracy : 0.0\n",
+      "\n",
+      "\n",
+      "diabetes_model version: 3\n",
+      "\t Training context : Script\n",
+      "\t Accuracy : 0.0\n",
+      "\n",
+      "\n",
+      "diabetes_model version: 2\n",
+      "\t Training context : Script\n",
+      "\t Accuracy : 0.007518796992481203\n",
+      "\n",
+      "\n",
+      "diabetes_model version: 1\n",
+      "\t Training context : Script\n",
+      "\t Accuracy : 0.007518796992481203\n",
+      "\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "\n",
+    "# Get logged metrics and files\n",
+    "metrics = run.get_metrics()\n",
+    "for key in metrics.keys():\n",
+    "        print(key, metrics.get(key))\n",
+    "print('\\n')\n",
+    "for file in run.get_file_names():\n",
+    "    print(file)\n",
+    "    \n",
+    "#Download model\n",
+    "\n",
+    "run. download_file(\"outputs/diabetes_model.pkl\",\"outputs/diabetes_model.pkl\")\n",
+    "\n",
+    "\n",
+    "\n",
+    "    \n",
+    "# Register the model\n",
+    "run.register_model(model_path='outputs/diabetes_model.pkl', model_name='diabetes_model',\n",
+    "                   tags={'Training context':'Script'},\n",
+    "                   properties={'Accuracy': run.get_metrics()['Accuracy']})\n",
+    "\n",
+    "# List registered models\n",
+    "for model in Model.list(ws):\n",
+    "    print(model.name, 'version:', model.version)\n",
+    "    for tag_name in model.tags:\n",
+    "        tag = model.tags[tag_name]\n",
+    "        print ('\\t',tag_name, ':', tag)\n",
+    "    for prop_name in model.properties:\n",
+    "        prop = model.properties[prop_name]\n",
+    "        print ('\\t',prop_name, ':', prop)\n",
+    "    print('\\n')  \n",
+    "    \n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Deploying the Model \n",
+    "\n",
+    "- Create a scoring Script\n",
+    "- Create Inference and Deployment Configuration\n",
+    "- The trained model can be deployed in three ways\n",
+    "    - In local compute\n",
+    "    - In AmlCompute\n",
+    "    - In Azure Kubernetes Service\n",
+    " "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 93,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "script_file = os.path.join(experiment_folder,\"score_diabetes.py\")\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 94,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Overwriting ml-series-diabetes-exp/score_diabetes.py\n"
+     ]
+    }
+   ],
+   "source": [
+    "%%writefile $script_file\n",
+    "import json\n",
+    "import joblib\n",
+    "import numpy as np\n",
+    "from azureml.core.model import Model\n",
+    "\n",
+    "# Called when the service is loaded\n",
+    "def init():\n",
+    "    global model\n",
+    "    # Get the path to the deployed model file and load it\n",
+    "    model_path = Model.get_model_path('diabetes_model')\n",
+    "    model = joblib.load(model_path)\n",
+    "\n",
+    "# Called when a request is received\n",
+    "def run(raw_data):\n",
+    "    # Get the input data as a numpy array\n",
+    "    data = np.array(json.loads(raw_data)['data'])\n",
+    "    # Get a prediction from the model\n",
+    "    predictions = model.predict(data)\n",
+    "    \n",
+    "    return json.dumps(predictions.tolist())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## - Using local compute"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 110,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Patient [59, 2, 32.1, 101.0, 157, 93.2, 38.0, 4.0, 4.8598, 87] 151\n",
+      "Patient [48, 1, 21.6, 87.0, 183, 103.2, 70.0, 3.0, 3.8918, 69] 65\n"
+     ]
+    }
+   ],
+   "source": [
+    "x_new = [[59,2,32.1,101.0,157,93.2,38.0,4.00,4.8598,87],[48,1,21.6,87.0,183,103.2,70.0,3.00,3.8918,69]]\n",
+    "# print ('Patient: {}'.format(x_new[0]))\n",
+    "\n",
+    "# Convert the array to a serializable list in a JSON document\n",
+    "input_json = json.dumps({\"data\": x_new})\n",
+    "\n",
+    "# Call the web service, passing the input data (the web service will also accept the data in binary format)\n",
+    "predictions = service.run(input_data = input_json)\n",
+    "\n",
+    "# Get the predicted class - it'll be the first (and only) one.\n",
+    "predicted_classes = json.loads(predictions)\n",
+    "for i in range(len(x_new)):\n",
+    "    print (\"Patient {}\".format(x_new[i]), predicted_classes[i] )"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## - Using Azure AML Compute"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 96,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Tips: You can try get_logs(): https://aka.ms/debugimage#dockerlog or local deployment: https://aka.ms/debugimage#debug-locally to debug if deployment takes longer than 10 minutes.\n",
+      "Running\n",
+      "2021-07-09 07:14:40+00:00 Creating Container Registry if not exists.\n",
+      "2021-07-09 07:14:40+00:00 Registering the environment.\n",
+      "2021-07-09 07:14:41+00:00 Use the existing image.\n",
+      "2021-07-09 07:14:42+00:00 Generating deployment configuration.\n",
+      "2021-07-09 07:14:43+00:00 Submitting deployment to compute..\n",
+      "2021-07-09 07:14:46+00:00 Checking the status of deployment diabetes-service3..\n",
+      "2021-07-09 07:17:40+00:00 Checking the status of inference endpoint diabetes-service3.\n",
+      "Succeeded\n",
+      "ACI service creation operation finished, operation \"Succeeded\"\n",
+      "Healthy\n"
+     ]
+    }
+   ],
+   "source": [
+    "from azureml.core.webservice import AciWebservice\n",
+    "from azureml.core.model import InferenceConfig\n",
+    "\n",
+    "# Configure the scoring environment\n",
+    "inference_config = InferenceConfig(entry_script=script_file,\n",
+    "                                   environment=env)\n",
+    "\n",
+    "deployment_config = AciWebservice.deploy_configuration(cpu_cores = 1, memory_gb = 1)\n",
+    "\n",
+    "service_name = \"diabetes-service3\"\n",
+    "\n",
+    "service = Model.deploy(ws, service_name, [model], inference_config, deployment_config)\n",
+    "\n",
+    "service.wait_for_deployment(True)\n",
+    "print(service.state)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 114,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "http://30708b77-602d-4712-8915-31b34943504a.centralus.azurecontainer.io/score\n"
+     ]
+    }
+   ],
+   "source": [
+    "endpoint = service.scoring_uri\n",
+    "print(endpoint)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 115,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[151, 65]\n",
+      "Patient [59, 2, 32.1, 101.0, 157, 93.2, 38.0, 4.0, 4.8598, 87] 151\n",
+      "Patient [48, 1, 21.6, 87.0, 183, 103.2, 70.0, 3.0, 3.8918, 69] 65\n"
+     ]
+    }
+   ],
+   "source": [
+    "import requests\n",
+    "import json\n",
+    "\n",
+    "x_new = [[59,2,32.1,101.0,157,93.2,38.0,4.00,4.8598,87],[48,1,21.6,87.0,183,103.2,70.0,3.00,3.8918,69]]\n",
+    "# Convert the array to a serializable list in a JSON document\n",
+    "input_json = json.dumps({\"data\": x_new})\n",
+    "\n",
+    "# Set the content type\n",
+    "headers = { 'Content-Type':'application/json' }\n",
+    "\n",
+    "predictions = requests.post(endpoint, input_json, headers = headers)\n",
+    "print(predictions.json())\n",
+    "predicted_classes = json.loads(predictions.json())\n",
+    "\n",
+    "for i in range(len(x_new)):\n",
+    "    print (\"Patient {}\".format(x_new[i]), predicted_classes[i] )"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 119,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "## - Using AKS Cluster"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 118,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# from azureml.core.webservice import AksWebservice\n",
+    "# from azureml.core.model import InferenceConfig\n",
+    "\n",
+    "# # Configure the scoring environment\n",
+    "# inference_config = InferenceConfig(entry_script=script_file,\n",
+    "#                                    environment=env)\n",
+    "# aks_name = 'deplyakscluster1' \n",
+    "\n",
+    "#     # Verify that cluster does not exist already\n",
+    "# try:\n",
+    "#         aks_target = ComputeTarget(workspace=ws, name=aks_name)\n",
+    "#         print('Found existing cluster, use it.')\n",
+    "# except:\n",
+    "#         # Use the default configuration (can also provide parameters to customize)\n",
+    "#         prov_config = AksCompute.provisioning_configuration(vm_size = \"Standard_D5_v2\")\n",
+    "\n",
+    "#         # Create the cluster\n",
+    "#         aks_target = ComputeTarget.create(workspace = ws, \n",
+    "#                                         name = aks_name, \n",
+    "#                                         provisioning_configuration = prov_config)\n",
+    "\n",
+    "# if aks_target.get_status() != \"Succeeded\":\n",
+    "#             aks_target.wait_for_completion(show_output=True)\n",
+    "# deployment_config = AksWebservice.deploy_configuration(cpu_cores = 1, memory_gb = 1)\n",
+    "\n",
+    "# service_name = \"diabetes-aks\"\n",
+    "\n",
+    "# service = Model.deploy(ws, service_name, [model], inference_config, deployment_config, aks_target)\n",
+    "\n",
+    "# service.wait_for_deployment(True)\n",
+    "# print(service.state)\n",
+    "\n",
+    "# endpoint = service.scoring_uri\n",
+    "# print(endpoint)\n",
+    "\n",
+    "# x_new = [[59,2,32.1,101.0,157,93.2,38.0,4.00,4.8598,87],[48,1,21.6,87.0,183,103.2,70.0,3.00,3.8918,69]]\n",
+    "# # Convert the array to a serializable list in a JSON document\n",
+    "# input_json = json.dumps({\"data\": x_new})\n",
+    "\n",
+    "# # Set the content type\n",
+    "# headers = { 'Content-Type':'application/json' }\n",
+    "\n",
+    "# predictions = requests.post(endpoint, input_json, headers = headers)\n",
+    "# print(predictions.json())\n",
+    "# predicted_classes = json.loads(predictions.json())\n",
+    "\n",
+    "# for i in range(len(x_new)):\n",
+    "#     print (\"Patient {}\".format(x_new[i]), predicted_classes[i] )"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Clean up resources\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Delete the Resource Group to delete all ml related resources in it\n",
+    "# Delete the Model and Webservices"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Improving the ML Workflows\n",
+    "\n",
+    "## [ML Notebooks](https://github.com/Azure/MachineLearningNotebooks/tree/master/how-to-use-azureml)\n",
+    "\n",
+    "- ### [Setting up Pipelines](https://github.com/Azure/MachineLearningNotebooks/tree/master/how-to-use-azureml/machine-learning-pipelines)\n",
+    "- ### Performing Hyperparameter Tuning\n",
+    "- ### Track and Monitor Models\n",
+    "- ### [Model Explanability](https://github.com/Azure/MachineLearningNotebooks/tree/master/how-to-use-azureml/explain-model)\n",
+    "- ### [Model Fairness](https://github.com/Azure/MachineLearningNotebooks/tree/master/how-to-use-azureml/responsible-ai)\n",
+    "- ### [AutoML](https://www.youtube.com/watch?v=rjcXbexIrp0)\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Summary of the notebook\n",
+    "\n",
+    "Learn how to use Azure Machine Learning services for experimentation and model management.\n",
+    "\n",
+    "As a pre-requisite, run the [configuration Notebook](../configuration.ipynb) notebook first to set up your Azure ML Workspace. Then, run the notebooks in following recommended order.\n",
+    "\n",
+    "* [train-within-notebook](./training/train-within-notebook): Train a model while tracking run history, and learn how to deploy the model as web service to Azure Container Instance.\n",
+    "* [train-on-local](./training/train-on-local): Learn how to submit a run to local computer and use Azure ML managed run configuration.\n",
+    "* [train-on-amlcompute](./training/train-on-amlcompute): Use a 1-n node Azure ML managed compute cluster for remote runs on Azure CPU or GPU infrastructure.\n",
+    "* [train-on-remote-vm](./training/train-on-remote-vm): Use Data Science Virtual Machine as a target for remote runs.\n",
+    "* [logging-api](./track-and-monitor-experiments/logging-api): Learn about the details of logging metrics to run history.\n",
+    "* [production-deploy-to-aks](./deployment/production-deploy-to-aks) Deploy a model to production at scale on Azure Kubernetes Service.\n",
+    "* [enable-app-insights-in-production-service](./deployment/enable-app-insights-in-production-service) Learn how to use App Insights with production web service.\n",
+    " \n",
+    "Find quickstarts, end-to-end tutorials, and how-tos on the [official documentation site for Azure Machine Learning service](https://docs.microsoft.com/en-us/azure/machine-learning/service/).\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Get Certified as Microsoft Azure Data Scientist Associate!\n",
+    "\n",
+    "## DP-100: Designing and Implementing a Data Science Solution on Azure\n",
+    "\n",
+    "- Candidates for the Azure Data Scientist Associate certification should have subject matter expertise applying data science and machine learning to implement and run machine learning workloads on Azure.\n",
+    "Responsibilities for this role include planning and creating a suitable working environment for data science workloads on Azure. You run data experiments and train predictive models. In addition, you manage, optimize, and deploy machine learning models into production.\n",
+    "A candidate for this certification should have knowledge and experience in data science and using Azure Machine Learning and Azure Databricks.\n",
+    "\n",
+    "- More info :  https://docs.microsoft.com/en-us/learn/certifications/exams/dp-100\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernel_info": {
+   "name": "python3-azureml"
+  },
+  "kernelspec": {
+   "display_name": "Python 3.6 - AzureML",
+   "language": "python",
+   "name": "python3-azureml"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.9"
+  },
+  "nteract": {
+   "version": "nteract-front-end@1.0.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
